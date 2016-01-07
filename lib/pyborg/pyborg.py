@@ -1155,17 +1155,17 @@ class pyborg:
             if len(words) < 1:
                 return
 
-            voyelles = u"aÃ Ã¢eÃ©Ã¨ÃªiÃ®Ã¯oÃ¶Ã´uÃ¼Ã»yaAeEiIoOuUyY"
+            #voyelles = u"aÃ Ã¢eÃ©Ã¨ÃªiÃ®Ã¯oÃ¶Ã´uÃ¼Ã»yaAeEiIoOuUyY"
             for x in xrange(0, len(words)):
 
-                nb_voy = 0
+                #nb_voy = 0
                 digit = 0
                 char = 0
 
                 for c in words[x]:
                     #print "Checking for %r (%s) in %s (%s)" % (c, type(c), voyelles, type(voyelles))
-                    if c in voyelles:
-                        nb_voy += 1
+                    #if c in voyelles:
+                    #    nb_voy += 1
                     if c.isalpha():
                         char += 1
                     if c.isdigit():
@@ -1177,10 +1177,15 @@ class pyborg:
                         print "Censored word %s" % words[x]
                         return
 
+                #or (((nb_voy * 100) / len(words[x]) < 21) and len(words[x]) > 5) \
                 if len(words[x]) > 13 \
-                or (((nb_voy * 100) / len(words[x]) < 21) and len(words[x]) > 5) \
                 or (char and digit) \
                 or (self.words.has_key(words[x]) == 0 and self.settings.learning == 0):
+                    print "refusing to learn the new word %s" % words[x]
+                    print bool(len(words[x]) > 13)
+                    #print bool((((nb_voy * 100) / len(words[x]) < 21) and len(words[x]) > 5))
+                    print bool((char and digit))
+                    print bool((self.words.has_key(words[x]) == 0 and self.settings.learning == 0))
                     #if one word as more than 13 characters, don't learn
                     #        (in french, this represent 12% of the words)
                     #and don't learn words where there are less than 20% of voyels
@@ -1188,8 +1193,8 @@ class pyborg:
                     #don't learn too if there are digits and char in the word
                     #same if learning is off
                     return
-                elif ("-" in words[x] or "_" in words[x]) :
-                    words[x] = "#nick"
+                #elif ("-" in words[x] or "_" in words[x]) :
+                #    words[x] = "#nick"
 
 
             num_w = self.settings.num_words
@@ -1222,6 +1227,7 @@ class pyborg:
 
             #is max_words reached, don't learn more
             if self.settings.num_words >= self.settings.max_words:
+                print "Not learning new words because %s >= %s" % (self.settings.num_words, self.settings.max_words)
                 self.settings.learning = 0
 
         # Split body text into sentences and parse them

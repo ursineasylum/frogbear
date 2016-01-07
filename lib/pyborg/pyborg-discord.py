@@ -33,7 +33,7 @@ except:
 
 #overide irclib function
 
-import os
+import os, re
 import pyborg
 import discord
 import cfgfile
@@ -213,6 +213,8 @@ class DiscordBot(object):
                 print "Locked owner as %s" % source
 
             body = message.content
+            if len(message.mentions) > 0:
+                body = re.sub("<@\d+>", "%s", message.content) % tuple([x.name for x in message.mentions])
 
             # WHOOHOOO!!
             if target == self.settings.myname or source == self.settings.myname:
