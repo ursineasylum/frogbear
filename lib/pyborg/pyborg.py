@@ -408,7 +408,7 @@ class pyborg:
 
         command_list = {
                 #'^who(?: the fuck)? is (?:cmdr )?(.+)$' : self.identify_friend_foe,
-                '^(witness m[ey] .*)$' : self.witness,
+                '^(witness m[ey].*)$' : self.witness,
                 }
 
         #if re.search(pattern, words[x]):
@@ -423,9 +423,14 @@ class pyborg:
         """
         Mediocre!
         """
-        if random.randint(0, 10) == 0:
+        check = random.randint(0, 10)
+        if check == 0:
             message = "PERFECT IN EVERY WAY!"
+            #message = "http://fi.somethingawful.com/safs/smilies/4/f/perfect.001.gif"
+        #elif check == 1:
+        #    message = "http://fi.somethingawful.com/safs/smilies/d/2/dunkedon.001.gif"
         else:
+            #message = "http://fi.somethingawful.com/safs/smilies/f/9/mediocre.001.gif"
             message = "MEDIOCRE!"
 
         io_module.output(message, args)

@@ -178,12 +178,14 @@ class DiscordBot(object):
         #self.connection.execute_delayed(20, self._nick_checker)
         #self.start()
 
+
         @self.client.event
         def on_ready():
             print('Logged in as')
             print(self.client.user.name)
             print(self.client.user.id)
             print('------')
+
 
         @self.client.event
         def on_message(message):
