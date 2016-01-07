@@ -28,7 +28,7 @@ from . import utils
 from .role import Role
 from .member import Member
 from .channel import Channel
-from pprint import pprint
+from .game import Game
 
 class Server(object):
     """Represents a Discord server.
@@ -118,10 +118,10 @@ class Server(object):
         for presence in guild.get('presences', []):
             user_id = presence['user']['id']
             member = utils.find(lambda m: m.id == user_id, self.members)
-            pprint(presence)
             if member is not None:
-                member.status = presence.get('status', None)
-                member.game_id = presence.get('game_id', None)
+                member.status = presence['status']
+                game = presence['game']
+                member.game = game and Game(**game)
 
         self.channels = [Channel(server=self, **c) for c in guild['channels']]
         afk_id = guild.get('afk_channel_id')
