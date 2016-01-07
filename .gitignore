@@ -1,3 +1,8 @@
 *.pyc
 *.swp
 data
+lib/pyborg/atomicfile.py
+lib/pyborg/discord
+lib/pyborg/gspread
+lib/pyborg/ircbot.py
+lib/pyborg/irclib.py
