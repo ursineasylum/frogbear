@@ -36,7 +36,7 @@ import zipfile
 import string
 import re
 import json
-from lib import gspread
+import gspread
 from oauth2client.client import SignedJwtAssertionCredentials
 from pprint import pprint
 from atomicfile import AtomicFile
@@ -586,9 +586,9 @@ class pyborg:
 
                     for i in xrange(len(wlist) - 1, -1, -1):
                         if len(wlist[i]) == 10:
-                            line_idx, word_num = struct.unpack("lH", wlist[i])
+                            line_idx, word_num = struct.unpack("qH", wlist[i])
                         else:
-                            line_idx, word_num = struct.unpack("iH", wlist[i])
+                            line_idx, word_num = struct.unpack("lH", wlist[i])
 
                         # Nasty critical error we should fix
                         if not self.lines.has_key(line_idx):
@@ -857,9 +857,9 @@ class pyborg:
         for x in pointers:
             # pointers consist of (line, word) to self.lines
             if len(x) == 10:
-                l, w = struct.unpack("lH", x)
+                l, w = struct.unpack("qH", x)
             else:
-                l, w = struct.unpack("iH", x)
+                l, w = struct.unpack("lH", x)
             line = self.lines[l][0].split()
             number = self.lines[l][1]
             if line[w] != old:
@@ -914,9 +914,9 @@ class pyborg:
             for y in xrange(len(word_contexts) - 1, -1, -1):
                 # Check for any of the deleted contexts
                 if len(word_contexts[y]) == 10:
-                    unpacked = struct.unpack( "lH", word_contexts[y] )[0]
+                    unpacked = struct.unpack( "qH", word_contexts[y] )[0]
                 else:
-                    unpacked = struct.unpack( "iH", word_contexts[y] )[0]
+                    unpacked = struct.unpack( "lH", word_contexts[y] )[0]
                 if unpacked in dellist:
                     del word_contexts[y]
                     self.settings.num_contexts = self.settings.num_contexts - 1
@@ -975,9 +975,9 @@ class pyborg:
             word = str(sentence[0].split(" ")[0])
             for x in xrange(0, len(self.words[word]) - 1):
                 if len(self.words[word][x]) == 10:
-                    l, w = struct.unpack("lH", self.words[word][x])
+                    l, w = struct.unpack("qH", self.words[word][x])
                 else:
-                    l, w = struct.unpack("iH", self.words[word][x])
+                    l, w = struct.unpack("lH", self.words[word][x])
                 context = self.lines[l][0]
                 num_context = self.lines[l][1]
                 cwords = context.split()
@@ -1055,9 +1055,9 @@ class pyborg:
             word = str(sentence[-1].split(" ")[-1])
             for x in self.words[word]:
                 if len(x) == 10:
-                    l, w = struct.unpack("lH", x)
+                    l, w = struct.unpack("qH", x)
                 else:
-                    l, w = struct.unpack("iH", x)
+                    l, w = struct.unpack("lH", x)
                 context = self.lines[l][0]
                 num_context = self.lines[l][1]
                 cwords = context.split()
@@ -1207,9 +1207,9 @@ class pyborg:
                     for x in xrange(0, len(words)):
                         if self.words.has_key(words[x]):
                             # Add entry. (line number, word number)
-                            self.words[words[x]].append(struct.pack("lH", hashval, x))
+                            self.words[words[x]].append(struct.pack("qH", hashval, x))
                         else:
-                            self.words[words[x]] = [ struct.pack("lH", hashval, x) ]
+                            self.words[words[x]] = [ struct.pack("qH", hashval, x) ]
                             self.settings.num_words += 1
                         self.settings.num_contexts += 1
             else :

@@ -25,6 +25,7 @@ import sys, time
 from threading import Timer
 
 try:
+    print(sys.path)
     import discord
 except:
     print "ERROR !!!!\discord.py not found, please install it\n"
