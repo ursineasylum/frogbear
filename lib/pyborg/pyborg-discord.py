@@ -280,7 +280,7 @@ class DiscordBot(object):
             ctxt_resp = channel_settings['context_response']
             opsec_level = channel_settings['opsec_level']
 
-            self.pyborg.process_msg(self, body, replyrate, learn, (body, target, channel_type), owner=owner, cmd_resp=cmd_resp, ctxt_resp=ctxt_resp, opsec_level=opsec_level)
+            self.pyborg.process_msg(self, body, replyrate, learn, (body, source, target, channel_type), owner=owner, cmd_resp=cmd_resp, ctxt_resp=ctxt_resp, opsec_level=opsec_level)
 
             #if source in self.owners: #and e.source() in self.owner_mask:
             #    #self.pyborg.process_msg(self, body, replyrate, learn, (body, source, target, c, e), owner=1)
@@ -634,7 +634,7 @@ class DiscordBot(object):
         """
         Output a line of text.
         old argss = (body, source, target, c, e)
-        new args = (body, target, msg_type)
+        new args = (body, source, target, msg_type)
         """
         print "Calling output"
         #if not self.connection.is_connected():
@@ -645,7 +645,14 @@ class DiscordBot(object):
         # Unwrap arguments
         #print "Attempting to parse passed args:"
         #print(args)
-        body, target, msg_type = args
+        body, source, target, msg_type = args
+
+        if type(target) == str:
+            channel_list = {c.name : c for c in self.client.get_all_channels()}
+            if target in channel_list:
+                target = channel_list[target]
+            else:
+                print "Could not find target channel %s" % target
 
         # Decide. should we do a ctcp action?
         # TODO: Figure out if this is passed in anywhere
