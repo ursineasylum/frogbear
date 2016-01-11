@@ -179,7 +179,7 @@ class pyborg:
                     'id' : '1r1bCFOroZ1FJ_02ZmBmOaZwAybBakDj1hOXt43nVH40',
                     'sheets' : {
                         'responses' : {'id' : 'okrb2x6', 'data' : None},
-                        'processed' : {'id' : 'o1pcd32', 'data' : None},
+                        'processed' : {'id' : 'o7ao2pc', 'data' : None},
                         },
                     },
             'goatcore' : {
@@ -366,9 +366,9 @@ class pyborg:
         #Check for contextual commands
         contextual = self.is_contextual_command(body)
         if contextual and ctxt_resp:
-            print "It's a contextual command:"
+            #print "It's a contextual command:"
             contextual[1](io_module, contextual[0], args, owner, opsec_level=opsec_level)
-            pprint(contextual)
+            #pprint(contextual)
             return
 
         # Parse commands
@@ -408,7 +408,7 @@ class pyborg:
                 if self.settings.process_with == "pyborg":
                     potential_replies = []
                     potential_replies = [self.reply(body) for x in range(0,3)]
-                    print "Got some potential replies:"
+                    #print "Got some potential replies:"
                     pprint(potential_replies)
 
                     message = potential_replies[0]
@@ -552,16 +552,19 @@ class pyborg:
         if len(check) < 4:
             return
 
+        #if check == "darthblingbling":
+        #    io_module.kick("ARE YOU QUESTIONING YOUR SUPERIORS", args)
+
         #HAAAACK
         try:
             #wks = gc.openall()
             #iff = wks[0].worksheets()[1].get_all_values()
             potential_frogs = []
 
-            message = []
+            message = {}
 
             line_items = self.frog_data['the_form']['sheets']['processed']['data']
-            pprint(self.frog_list)
+            #pprint(self.frog_list)
 
             if line_items is None:
                 raise Exception("IFF data not loaded.")
@@ -585,11 +588,13 @@ class pyborg:
                     else:
                         prefix = "CMDR %s is a registered Frog" % frog[2]
 
-                    message.append(prefix + postfix)
+                    #message.append(prefix + postfix)
+                    message[frog[3].lower()] = prefix + postfix
 
             for kos in self.not_frogs['KOS']:
                 if check in kos.lower():
-                    message.append("CMDR %s is a KOS target. Type \"!scramble <location>\" to alert the fleet." % kos)
+                    #message.append("CMDR %s is a KOS target. Type \"!scramble <location>\" to alert the fleet." % kos)
+                    message[kos.lower()] = "CMDR %s is a KOS target. Type \"!scramble <location>\" to alert the fleet." % kos
                     self.scramble_reports[source] = {
                             'reporter' : source,
                             'target' : kos,
@@ -598,7 +603,8 @@ class pyborg:
 
             for mission_target in self.not_frogs['Mission Target']:
                 if check in mission_target.lower():
-                    message.append("CMDR %s is a mission target. Type \"!scramble <location>\" to alert the fleet." % mission_target)
+                    message[kos.lower()] = "CMDR %s is a KOS target. Type \"!scramble <location>\" to alert the fleet." % kos
+                    #message.append("CMDR %s is a mission target. Type \"!scramble <location>\" to alert the fleet." % mission_target)
                     self.scramble_reports[source] = {
                             'reporter' : source,
                             'target' : kos,
@@ -607,15 +613,24 @@ class pyborg:
 
             for friendly in self.not_frogs['Non-Frog Friendly']:
                 if check in friendly.lower():
-                    message.append("CMDR %s is a Non-Frog Friendly." % friendly)
+                    #message.append("CMDR %s is a Non-Frog Friendly." % friendly)
+                    message[friendly.lower()] = "CMDR %s is a Non-Frog Friendly." % friendly
 
-            if len(message) > 3:
+            if len(message.keys()) > 3:
                 io_module.output("Too many results found", args)
-            elif len(message) > 0:
-                print "Working with %s" % message
-                for m in message:
-                    print "Outputting %s" % m
-                    io_module.output(m, args)
+            elif len(message.keys()) > 0:
+                if 'darthblingbling' in message.keys():
+                    del message['darthblingbling']
+                    io_module.output("Someone's being an ass.", args)
+                    io_module.set_role("Dumb Arsehole", args[1], args)
+
+                if len(message.keys()) > 0:
+                    print "Working with %s" % message
+                    for m in message:
+                        print "Outputting %s" % message[m]
+                        io_module.output(message[m], args)
+                else:
+                    return
             else:
                 io_module.output("I don't know who %s is" % body, args)
 

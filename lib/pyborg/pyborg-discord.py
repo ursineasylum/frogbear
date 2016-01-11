@@ -131,6 +131,7 @@ class DiscordBot(object):
         self.feature_monitor = False
         self.client = discord.Client()
 
+        self.roles = {}
         # Parse command prompt parameters
 
         #for x in xrange(1, len(args)):
@@ -175,12 +176,24 @@ class DiscordBot(object):
         #self.start()
 
 
+
+
         @self.client.event
         def on_ready():
             print('Logged in as')
             print(self.client.user.name)
             print(self.client.user.id)
             print('------')
+
+            print "Getting a server list"
+            servers = self.client.servers
+            print servers
+            for server in servers:
+                print "Checking for %s in %s" % (server.name, self.settings.interaction_settings.keys())
+                if server.name in self.settings.interaction_settings.keys():
+                    self.roles[server.name] = {x.name : x for x in server.roles}
+
+            pprint(self.roles)
 
 
         @self.client.event
@@ -631,6 +644,53 @@ class DiscordBot(object):
     #            self._try_regain(self.wanted_myname)
     #            break
 
+    def set_role(self, role, target, args):
+        """
+        Force-set a role of a target
+        """
+        body, source, raw_target, msg_type = args
+
+        if isinstance(target, basestring):
+            member_list = {c.name : c for c in self.client.get_all_members()}
+
+            if target in member_list:
+                target = member_list[target]
+
+            else:
+                print "Could not find target member %s" % target
+                return
+
+        if isinstance(role, basestring):
+            if role in self.roles[target.server.name].keys():
+                role = self.roles[target.server.name][role]
+            else:
+                print "Could not find role %s on target server %s" % (role, target.server.name)
+                return
+
+
+        self.client.add_roles(target, *[role])
+
+
+    def kick(self, message, args):
+        """
+        Discord-kick a member target with a message
+        """
+        body, source, target, msg_type = args
+
+
+        if isinstance(source, basestring):
+            source_list = {c.name : c for c in self.client.get_all_members()}
+
+            if source in source_list:
+                source = source_list[source]
+
+            else:
+                print "Could not find target source %s" % target
+                return
+
+        self.output(message, args)
+        self.client.kick(target.server, source)
+
     def output(self, message, args):
         """
         Output a line of text.
@@ -646,7 +706,7 @@ class DiscordBot(object):
         # Unwrap arguments
         print "Attempting to parse passed args:"
         #print(args)
-        pprint(args)
+        #pprint(args)
         body, source, target, msg_type = args
 
 
@@ -661,6 +721,7 @@ class DiscordBot(object):
 
             else:
                 print "Could not find target channel %s" % target
+                return
 
         # Decide. should we do a ctcp action?
         # TODO: Figure out if this is passed in anywhere
