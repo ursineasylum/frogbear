@@ -516,7 +516,7 @@ class pyborg:
         self.not_frogs = {x[0] : x[1:] for x in zip(*self.frog_data['goatcore']['sheets']['iff registry']['data'])}
 
         for item in self.scramble_reports.keys():
-            if abs(self.scramble_reports[item]['time'] - datetime.datetime.now).seconds > 300:
+            if abs(self.scramble_reports[item]['time'] - datetime.datetime.now()).seconds > 300:
                 del self.scramble_reports[item]
 
         deploy_data = zip(*self.frog_data['goatcore']['sheets']['deployments']['data'])
