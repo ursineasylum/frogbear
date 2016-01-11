@@ -483,9 +483,10 @@ class Client(object):
         return invite
 
     def _resolve_destination(self, destination):
+        print("Destination is %s: %s" % (destination, type(destination)))
         if isinstance(destination, (Channel, PrivateChannel, Server)):
             return destination.id
-        elif isinstance(destination, User):
+        elif isinstance(destination, (User, Member)):
             found = utils.find(lambda pm: pm.user == destination, self.private_channels)
             if found is None:
                 # Couldn't find the user, so start a PM with them first.
@@ -497,7 +498,7 @@ class Client(object):
         elif isinstance(destination, Object):
             return destination.id
         else:
-            raise InvalidArgument('Destination must be Channel, PrivateChannel, User, or Object')
+            raise InvalidArgument('Destination must be Channel, PrivateChannel, User, Member, or Object')
 
     def on_error(self, event_method, *args, **kwargs):
         print('Ignoring exception in {}'.format(event_method), file=sys.stderr)

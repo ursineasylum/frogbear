@@ -191,6 +191,8 @@ class pyborg:
                         'euro frogs' : {'id' : 'o33tuhd', 'data' : None},
                         'reserves' : {'id' : 'o7hxgb1', 'data' : None},
                         'iff registry' : {'id' : 'oxi9gng', 'data' : None},
+                        'command staff' : {'id' : 'otieqhn', 'data' : None},
+                        'deployments' : {'id' : 'olhqcx7', 'data' : None},
                         },
                     },
         }
@@ -199,6 +201,8 @@ class pyborg:
         self.not_frogs = {}
 
         self.scramble_reports = {}
+
+        self.deploy_data = {}
 
         self.last_data_update = None
 
@@ -496,7 +500,7 @@ class pyborg:
                         fancy_flight_name = "%sth" % wing_data[0]
 
                     for f in self.wing_data[wing_data[0]]:
-                        self.frog_list[f.lower()] = {'rank' : 'a member', 'flight' : fancy_flight_name, 'squadron' : flight}
+                        self.frog_list[f.lower()] = {'rank' : 'a member', 'flight' : fancy_flight_name, 'squadron' : flight, 'flight_number' : wing_data[0]}
 
                     if wing_data[1] != "":
                         self.frog_list[wing_data[1].lower()]['rank'] = 'the flight leader'
@@ -504,12 +508,25 @@ class pyborg:
                     #self.wing_data[f_num] = {'lead' : '', 'members' : []}
                 #Flight #s are self.frog_data['goatcore']['sheets'][flight]['data'][0]
                 #Flight leads are self.frog_data['goatcore']['sheets'][flight]['data'][1]
+            elif flight in ['command staff']:
+                wing_list = self.frog_data['goatcore']['sheets'][flight]['data']
+                for member in wing_list[0:]:
+                    self.frog_list[member[0].lower()] = {'rank' : member[1], 'flight' : '', 'flight_number' : ''}
 
         self.not_frogs = {x[0] : x[1:] for x in zip(*self.frog_data['goatcore']['sheets']['iff registry']['data'])}
 
         for item in self.scramble_reports.keys():
             if abs(self.scramble_reports[item]['time'] - datetime.datetime.now).seconds > 300:
                 del self.scramble_reports[item]
+
+        deploy_data = zip(*self.frog_data['goatcore']['sheets']['deployments']['data'])
+
+        for item in deploy_data[2:]:
+            target = item[0]
+            self.deploy_data.update({x : target for x in item[1:] if x != ""})
+
+        print self.deploy_data
+
 
         self.last_data_update = datetime.datetime.now()
 
@@ -561,7 +578,10 @@ class pyborg:
 
                     if frog[3].lower() in self.frog_list:
                         this_frog = self.frog_list[frog[3].lower()]
-                        prefix = "CMDR %s is %s of the %s %s" % (frog[1], this_frog['rank'], this_frog['flight'], this_frog['squadron'])
+                        if this_frog['flight'] != "":
+                            prefix = "CMDR %s is %s of the %s %s" % (frog[2], this_frog['rank'], this_frog['flight'], this_frog['squadron'])
+                        else:
+                            prefix = "CMDR %s is the %s" % (frog[2], this_frog['rank'])
                     else:
                         prefix = "CMDR %s is a registered Frog" % frog[2]
 
@@ -603,6 +623,35 @@ class pyborg:
             print "Could not look up the google api: %s" % str(e)
             io_module.output("Could not look anything up, try again later.", args)
 
+    def orders(self, io_module, body, args, owner, opsec_level=None):
+        """
+        Scramble the fleet
+        """
+        if opsec_level is None:
+            return
+
+        raw_body, source, target, msg_type = args
+
+        #Refresh frog_data every 600 seconds
+        if self.last_data_update is None or abs(datetime.datetime.now() - self.last_data_update).seconds > 600:
+            io_module.output("Updating IFF cache, stand by.", args)
+            self._update_frog_data()
+
+
+        #TODO: Bind frog names to shit
+        if source.lower() in self.frog_list:
+            if self.frog_list[source.lower()]['flight_number'] != "":
+                if self.frog_list[source.lower()]['flight_number'] in self.deploy_data:
+                    msg = "You are assigned to %s" % self.deploy_data[self.frog_list[source.lower()]['flight_number']]
+                else:
+                    msg = "Could not find your flight's deploy data. Assume Standing Orders until further notice."
+            else:
+                msg = "Could not find your flight. Contact your flight leader for further instructions."
+        else:
+            msg = "Could not match your Discord name to a Frog. Contact your flight leader for current orders."
+
+        io_module.output(msg, (raw_body, source, source, "private"))
+
     def scramble(self, io_module, body, args, owner, opsec_level=None):
         """
         Scramble the fleet
@@ -638,6 +687,8 @@ class pyborg:
             self.identify_friend_foe(io_module, " ".join(command_list[1:]), args, owner, opsec_level=opsec_level)
         elif command_list[0] == "!scramble":
             self.scramble(io_module, " ".join(command_list[1:]), args, owner, opsec_level=opsec_level)
+        elif command_list[0] == "!orders":
+            self.orders(io_module, " ".join(command_list[1:]), args, owner, opsec_level=opsec_level)
 
         # How many words do we know?
         elif command_list[0] == "!words" and self.settings.process_with == "pyborg":

@@ -27,7 +27,8 @@ from threading import Timer
 try:
     print(sys.path)
     import discord
-except:
+except Exception, e:
+    print str(e)
     print "ERROR !!!!\discord.py not found, please install it\n"
     sys.exit(1)
 
@@ -643,14 +644,21 @@ class DiscordBot(object):
             return
 
         # Unwrap arguments
-        #print "Attempting to parse passed args:"
+        print "Attempting to parse passed args:"
         #print(args)
+        pprint(args)
         body, source, target, msg_type = args
 
-        if type(target) == str:
-            channel_list = {c.name : c for c in self.client.get_all_channels()}
+
+        if isinstance(target, basestring):
+            if msg_type == "public":
+                channel_list = {c.name : c for c in self.client.get_all_channels()}
+            else:
+                channel_list = {c.name : c for c in self.client.get_all_members()}
+
             if target in channel_list:
                 target = channel_list[target]
+
             else:
                 print "Could not find target channel %s" % target
 
