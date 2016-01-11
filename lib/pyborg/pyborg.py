@@ -313,7 +313,7 @@ class pyborg:
             finally:
                 self.saving = False
 
-    def process_msg(self, io_module, body, replyrate, learn, args, owner = 0):
+    def process_msg(self, io_module, body, replyrate, learn, args, owner = False, cmd_resp = False, ctxt_resp = False, opsec_level = None):
         """
         Process message 'body' and pass back to IO module with args.
         If owner==1 allow owner commands.
@@ -333,14 +333,14 @@ class pyborg:
 
         #Check for contextual commands
         contextual = self.is_contextual_command(body)
-        if contextual:
+        if contextual and ctxt_resp:
             print "It's a contextual command:"
-            contextual[1](io_module, contextual[0], args, owner)
+            contextual[1](io_module, contextual[0], args, owner, opsec_level=opsec_level)
             pprint(contextual)
             return
 
         # Parse commands
-        if body[0] == "!":
+        if body[0] == "!" and cmd_resp:
             self.do_commands(io_module, body, args, owner)
             return
 
@@ -348,7 +348,7 @@ class pyborg:
         body = filter_message(body, self)
 
         # Learn from input
-        if learn == 1:
+        if learn == True:
             if self.settings.process_with == "pyborg":
                 self.learn(body)
             elif self.settings.process_with == "megahal" and self.settings.learning == 1:
@@ -407,7 +407,7 @@ class pyborg:
         """
 
         command_list = {
-                #'^who(?: the fuck)? is (?:cmdr )?(.+)$' : self.identify_friend_foe,
+                '^who(?: the fuck)? is (?:cmdr )?(.+)$' : self.identify_friend_foe,
                 '^(witness m[ey].*)$' : self.witness,
                 }
 
@@ -419,7 +419,7 @@ class pyborg:
 
         return False
 
-    def witness(self, io_module, body, args, owner):
+    def witness(self, io_module, body, args, owner, opsec_level=None):
         """
         Mediocre!
         """
@@ -435,10 +435,13 @@ class pyborg:
 
         io_module.output(message, args)
 
-    def identify_friend_foe(self, io_module, body, args, owner):
+    def identify_friend_foe(self, io_module, body, args, owner, opsec_level=None):
         """
         Module to search for and store IFF information.
         """
+
+        if opsec_level is None:
+            return
 
         #TODO: Move this into a config file
         frog_data = {
@@ -500,7 +503,7 @@ class pyborg:
 
         except Exception, e:
             print "Could not look up the google api: %s" % str(e)
-            io_module.output("Google sucks, try again later.", args)
+            io_module.output("Could not look anything up, try again later.", args)
 
     def do_commands(self, io_module, body, args, owner):
         """
@@ -541,7 +544,7 @@ class pyborg:
             msg = msg.replace("#nick", "$nick")
 
         # Owner commands
-        if owner == 1:
+        if owner == True:
             # Save dictionary
             if command_list[0] == "!save":
                 if self.save_all():

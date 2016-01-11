@@ -100,25 +100,20 @@ class DiscordBot(object):
         # load settings
 
         self.settings = cfgfile.cfgset()
-        self.settings.load("pyborg-discord.cfg",
+        self.settings.load("pyborg-discord.json",
                 { "myname": ("The bot's nickname", "PyBorg"),
-                  #"realname": ("Reported 'real name'", "Pyborg"),
-                  #"localaddress": ("Local IP to bind to", ""),
-                  #"ipv6": ("Whether to use IPv6", 0),
-                  "owners": ("Owner(s) nickname", [ "OwnerNick" ]),
-                  #"servers": ("Discord Server to pay attention to (server name)", [("irc.sucks.net")]),
-                  #"chans": ("Channels to pay attention to", ["#cutie578"]),
-                  'attentive_channels' : ("Server/channel combos to pay attention to", {}),
+                  "owners": ("Owner(s) nickname", []),
+                  "interaction_settings" : ("Server/channel combos to pay attention to", {}),
+                  "interaction_defaults" : ("Server/channel global settings, for when replacements aren't set.", {}),
+                  "interaction_private" : ("Settings for private message replies.", {}),
                   "speaking": ("Allow the bot to talk on channels", 1),
                   "stealth": ("Hide the fact we are a bot", 0),
                   "ignorelist": ("Ignore these nicknames:", []),
                   "reply2ignored": ("Reply to ignored people", 0),
-                  "reply_chance": ("Chance of reply (%) per message", 10),
                   "quitmsg": ("IRC quit message", "Bye :-("),
-                  #"password": ("password for control the bot (Edit manually !)", ""),
                   "autosaveperiod": ("Save every X minutes. Leave at 0 for no saving.", 60),
-                  "disco_auto": ("username and password for discord", ("", "")),
-                  "magic_words" : ("magic notification words", [])
+                  "magic_words" : ("magic notification words", []),
+                  "disco_auth" : ("Discord authentication creds", [])
                 })
 
         # If autosaveperiod is set, trigger it.
@@ -192,18 +187,24 @@ class DiscordBot(object):
             """
             Process messages.
             """
-
             #Ensure we actually want to hook onto this message
-            if message.server.name in self.settings.attentive_channels and message.channel.name in self.settings.attentive_channels[message.server.name].keys():
-                pass
+            is_private = False
+            source = message.author.name
+            target = message.channel
+            if hasattr(message.channel, 'is_private') and message.channel.is_private:
+                #It's a private message.
+                is_private = True
+                channel_settings = self.settings.interaction_private
+            elif message.server.name in self.settings.interaction_settings and message.channel.name in self.settings.interaction_settings[message.server.name].keys():
+                channel_settings = self.settings.interaction_settings[message.server.name][message.channel.name]
+                for def_set in self.settings.interaction_defaults.keys():
+                    if def_set not in channel_settings:
+                        channel_settings[def_set] = self.settings.interaction_defaults[def_set]
             else:
                 return
 
-            source = message.author.name
-            target = message.channel.name
-            channel_settings = self.settings.attentive_channels[message.server.name][message.channel.name]
 
-            learn = 1
+            learn = channel_settings['learning']
 
             # First message from owner 'locks' the owner host mask
             # se people can't change to the owner nick and do horrible
@@ -230,7 +231,7 @@ class DiscordBot(object):
             if channel_settings.get('read_only', True) or self.settings.speaking == 0:
                 replyrate = 0
             else:
-                replyrate = channel_settings.get("reply_chance", self.settings.reply_chance)
+                replyrate = channel_settings.get("reply_chance", 0)
 
                 if body_contains_me:
                     body = body.lower().replace(self.client.user.name.lower(), '')
@@ -249,13 +250,13 @@ class DiscordBot(object):
             if self.settings.ignorelist.count(source.lower()) > 0 \
                     and self.settings.reply2ignored == 1:
                 print "Nolearn from %s" % source
-                learn = 0
+                learn = False
             elif self.settings.ignorelist.count(source.lower()) > 0:
                 print "Ignoring %s" % source
                 return
             elif len(body.split(" ")) <= 3:
                 #Short phrases aren't enough to learn from
-                learn = 0
+                learn = False
 
             # Stealth mode. disable commands for non owners
             if (not source in self.owners) and self.settings.stealth:
@@ -266,14 +267,29 @@ class DiscordBot(object):
                 return
 
             # Pass message onto pyborg
-            if source in self.owners: #and e.source() in self.owner_mask:
-                #self.pyborg.process_msg(self, body, replyrate, learn, (body, source, target, c, e), owner=1)
-                self.pyborg.process_msg(self, body, replyrate, learn, (body, message.channel, 'public'), owner=1)
+            channel_type = "public"
+            if is_private:
+                channel_type = "private"
+
+            if source in self.owners:
+                owner = True
             else:
-                #start a new thread
-                #thread.start_new_thread(self.pyborg.process_msg, (self, body, replyrate, learn, (body, message.channel, 'public')))
-                self.pyborg.process_msg(self, body, replyrate, learn, (body, message.channel, 'public'))
-                pass
+                owner = False
+
+            cmd_resp = channel_settings['command_response']
+            ctxt_resp = channel_settings['context_response']
+            opsec_level = channel_settings['opsec_level']
+
+            self.pyborg.process_msg(self, body, replyrate, learn, (body, target, channel_type), owner=owner, cmd_resp=cmd_resp, ctxt_resp=ctxt_resp, opsec_level=opsec_level)
+
+            #if source in self.owners: #and e.source() in self.owner_mask:
+            #    #self.pyborg.process_msg(self, body, replyrate, learn, (body, source, target, c, e), owner=1)
+            #    self.pyborg.process_msg(self, body, replyrate, learn, (body, message.channel, channel_type), owner=1)
+            #else:
+            #    #start a new thread
+            #    #thread.start_new_thread(self.pyborg.process_msg, (self, body, replyrate, learn, (body, message.channel, 'public')))
+            #    self.pyborg.process_msg(self, body, replyrate, learn, (body, message.channel, 'public'))
+            #    pass
 
     #def on_msg(self, c, e):
         self.client.run()
@@ -651,7 +667,8 @@ class DiscordBot(object):
             else:
                 self.client.send_message(target, "/me" + message)
         # Private messages
-        elif msg_type == "priv":
+        elif msg_type == "private":
+            self.client.send_message(target, message)
             # normal private msg
             pass
             #if action == 0:
