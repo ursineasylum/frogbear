@@ -37,6 +37,7 @@ import string
 import re
 import json
 import gspread
+import datetime
 from oauth2client.client import SignedJwtAssertionCredentials
 from pprint import pprint
 from atomicfile import AtomicFile
@@ -172,7 +173,30 @@ class pyborg:
         #Set up google credentials
         json_key = json.loads(open("google_auth.json").read())
         self.oauth_creds = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'].encode(), ['https://spreadsheets.google.com/feeds'])
-        self.iff_info = None
+
+        self.frog_data = {
+            'the_form' : {
+                    'id' : '1r1bCFOroZ1FJ_02ZmBmOaZwAybBakDj1hOXt43nVH40',
+                    'sheets' : {
+                        'responses' : {'id' : 'okrb2x6', 'data' : None},
+                        'processed' : {'id' : 'o1pcd32', 'data' : None},
+                        },
+                    },
+            'goatcore' : {
+                    'id' : '1-MRZ0CT-NSzOstnbuMMjbHH79vzr5FfiNboMvDqICGo',
+                    'sheets' : {
+                        'deployments' : {'id' : 'olhqcx7', 'data' : None},
+                        'anurans' : {'id' : 'o3yggcj', 'data' : None},
+                        'pollywogs' : {'id' : 'odz817l', 'data' : None},
+                        'euro frogs' : {'id' : 'o33tuhd', 'data' : None},
+                        'reserves' : {'id' : 'o7hxgb1', 'data' : None},
+                        },
+                    },
+        }
+        self.wing_data = {}
+        self.frog_list = {}
+
+        self.last_data_update = None
 
         # Read the dictionary
         if self.settings.process_with == "pyborg":
@@ -341,7 +365,7 @@ class pyborg:
 
         # Parse commands
         if body[0] == "!" and cmd_resp:
-            self.do_commands(io_module, body, args, owner)
+            self.do_commands(io_module, body, args, owner, opsec_level=opsec_level)
             return
 
         # Filter out garbage and do some formatting
@@ -435,36 +459,64 @@ class pyborg:
 
         io_module.output(message, args)
 
+    def _update_frog_data(self):
+        gc = gspread.authorize(self.oauth_creds)
+        wks = gc.openall()
+        for doc in wks:
+            for exp_doc in self.frog_data:
+                if doc.id == self.frog_data[exp_doc]['id']:
+                    #exp_doc['data'] = doc
+                    for sheet in doc.worksheets():
+                        for exp_sheet in self.frog_data[exp_doc]['sheets']:
+                            if sheet.id == self.frog_data[exp_doc]['sheets'][exp_sheet]['id']:
+                                self.frog_data[exp_doc]['sheets'][exp_sheet]['data'] = sheet.get_all_values()
+
+        for flight in self.frog_data['goatcore']['sheets']:
+            if flight in ['anurans','polywogs','euro frogs','reserves']:
+                wing_list = zip(*self.frog_data['goatcore']['sheets'][flight]['data'])
+
+
+                for wing_data in wing_list:
+                    print "Parsing wing_data:"
+                    pprint(wing_data)
+                    self.wing_data[wing_data[0]] = [x for x in wing_data[1:] if x != ""]
+
+                    #fancy_flight_name = wing_data[0]
+                    if wing_data[0][-1] == "1":
+                        fancy_flight_name = "%sst" % wing_data[0]
+                    elif wing_data[0][-1] == "2":
+                        fancy_flight_name = "%snd" % wing_data[0]
+                    elif wing_data[0][-1] == "3":
+                        fancy_flight_name = "%srd" % wing_data[0]
+                    else:
+                        fancy_flight_name = "%sth" % wing_data[0]
+
+                    for f in self.wing_data[wing_data[0]]:
+                        self.frog_list[f.lower()] = {'rank' : 'a member', 'flight' : fancy_flight_name, 'squadron' : flight}
+
+                    if wing_data[1] != "":
+                        self.frog_list[wing_data[1].lower()]['rank'] = 'the flight leader'
+                #for f_num in self.frog_data['goatcore']['sheets'][flight]['data']:
+                    #self.wing_data[f_num] = {'lead' : '', 'members' : []}
+                #Flight #s are self.frog_data['goatcore']['sheets'][flight]['data'][0]
+                #Flight leads are self.frog_data['goatcore']['sheets'][flight]['data'][1]
+
+
+        self.last_data_update = datetime.datetime.now()
+
     def identify_friend_foe(self, io_module, body, args, owner, opsec_level=None):
         """
         Module to search for and store IFF information.
         """
 
+        #Opsec level for this is 0 or higher
         if opsec_level is None:
             return
 
-        #TODO: Move this into a config file
-        frog_data = {
-            'the_form' : {
-                    'id' : '1r1bCFOroZ1FJ_02ZmBmOaZwAybBakDj1hOXt43nVH40',
-                    'sheets' : {
-                        'responses' : {'id' : 'okrb2x6'},
-                        'processed' : {'id' : 'o1pcd32'},
-                        },
-                    },
-            'goatcore' : {
-                    'id' : '1-MRZ0CT-NSzOstnbuMMjbHH79vzr5FfiNboMvDqICGo',
-                    'sheets' : {
-                        'deployments' : {'id' : 'olhqcx7'},
-                        'anurans' : {'id' : 'o3yggcj'},
-                        'pollywogs' : {'id' : 'odz817l'},
-                        'euro frog' : {'id' : 'o33tuhd'},
-                        'reserves' : {'id' : 'o7hxgb1'},
-                        },
-                    },
-        }
+        #Refresh frog_data every 600 seconds
+        if self.last_data_update is None or abs(datetime.datetime.now() - self.last_data_update).seconds > 600:
+            self._update_frog_data()
 
-        gc = gspread.authorize(self.oauth_creds)
 
         check = body.lower().strip()
         if len(check) < 4:
@@ -472,24 +524,35 @@ class pyborg:
 
         #HAAAACK
         try:
-            wks = gc.openall()
-            iff = wks[0].worksheets()[1].get_all_values()
+            #wks = gc.openall()
+            #iff = wks[0].worksheets()[1].get_all_values()
             potential_frogs = []
 
             message = []
 
-            for frog in iff:
+            line_items = self.frog_data['the_form']['sheets']['processed']['data']
+            pprint(self.frog_list)
 
+            if line_items is None:
+                raise Exception("IFF data not loaded.")
+
+            for frog in line_items:
                 #1: SA Name
                 #2: CMDR Name
                 #3: Inara Name
                 if check in frog[1].lower() or check in frog[2].lower() or check in frog[3].lower():
-                    if frog[1].lower() == frog[2].lower():
-                        m = "CMDR %s is a Frog." % frog[2]
-                    else:
-                        m = "CMDR %s is a Frog, aka a goon named %s" % (frog[2], frog[1])
+                    postfix = ""
+                    prefix = ""
+                    if frog[1].lower() != frog[2].lower():
+                        postfix = ", aka on the forums as %s" % frog[1]
 
-                    message.append(m)
+                    if frog[3].lower() in self.frog_list:
+                        this_frog = self.frog_list[frog[3].lower()]
+                        prefix = "CMDR %s is %s of the %s %s" % (frog[1], this_frog['rank'], this_frog['flight'], this_frog['squadron'])
+                    else:
+                        prefix = "CMDR %s is a registered Frog" % frog[2]
+
+                    message.append(prefix + postfix)
 
             if len(message) > 3:
                 io_module.output("Too many results found", args)
@@ -505,7 +568,7 @@ class pyborg:
             print "Could not look up the google api: %s" % str(e)
             io_module.output("Could not look anything up, try again later.", args)
 
-    def do_commands(self, io_module, body, args, owner):
+    def do_commands(self, io_module, body, args, owner, opsec_level=None):
         """
         Respond to user comands.
         """
@@ -519,6 +582,9 @@ class pyborg:
         # Version string
         if command_list[0] == "!version":
             msg = self.ver_string
+
+        elif command_list[0] == "!iff":
+            self.identify_friend_foe(io_module, " ".join(command_list[1:]), args, owner, opsec_level=opsec_level)
 
         # How many words do we know?
         elif command_list[0] == "!words" and self.settings.process_with == "pyborg":
@@ -1184,11 +1250,6 @@ class pyborg:
                 if len(words[x]) > 13 \
                 or (char and digit) \
                 or (self.words.has_key(words[x]) == 0 and self.settings.learning == 0):
-                    print "refusing to learn the new word %s" % words[x]
-                    print bool(len(words[x]) > 13)
-                    #print bool((((nb_voy * 100) / len(words[x]) < 21) and len(words[x]) > 5))
-                    print bool((char and digit))
-                    print bool((self.words.has_key(words[x]) == 0 and self.settings.learning == 0))
                     #if one word as more than 13 characters, don't learn
                     #        (in french, this represent 12% of the words)
                     #and don't learn words where there are less than 20% of voyels

@@ -259,7 +259,7 @@ class DiscordBot(object):
                 learn = False
 
             # Stealth mode. disable commands for non owners
-            if (not source in self.owners) and self.settings.stealth:
+            if (not source in self.owners) and not channel_settings['command_response']:
                 while body[:1] == "!":
                     body = body[1:]
 
