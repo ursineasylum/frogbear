@@ -127,6 +127,7 @@ class DiscordBot(object):
         #self.chans = self.settings.chans[:]
         self.inchans = []
         self.wanted_myname = self.settings.myname
+        self.pyborg.bot_name = self.settings.myname
         self.attempting_regain = False
         self.feature_monitor = False
         self.client = discord.Client()
@@ -248,7 +249,7 @@ class DiscordBot(object):
                 replyrate = channel_settings.get("reply_chance", 0)
 
                 if body_contains_me:
-                    body = body.lower().replace(self.client.user.name.lower(), '')
+                    #body = body.lower().replace(self.client.user.name.lower(), '')
                     replyrate = channel_settings.get('notice_chance', replyrate)
                     #replyrate = 100
 
@@ -733,6 +734,9 @@ class DiscordBot(object):
         #    action = 0
 
         # Joins replies and public messages
+        if isinstance(message, unicode):
+            message = message.encode("utf-8")
+
         if msg_type == "public":
 
             self.client.send_typing(target)

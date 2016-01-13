@@ -33,11 +33,13 @@ import marshal    # buffered marshal is bloody fast. wish i'd found this before 
 import struct
 import time
 import zipfile
+import math
 import string
 import re
 import json
 import gspread
 import datetime
+from decimal import Decimal
 from oauth2client.client import SignedJwtAssertionCredentials
 from pprint import pprint
 from atomicfile import AtomicFile
@@ -122,6 +124,7 @@ class pyborg:
     saves_version = "1.1.0"
 
     saving = False
+    bot_name = "Pyborg"
 
     # Main command list
     commandlist = "Pyborg commands:\n!checkdict, !contexts, !help, !known, !learning, !rebuilddict, \
@@ -172,6 +175,11 @@ class pyborg:
 
         #Set up google credentials
         json_key = json.loads(open("google_auth.json").read())
+
+        #load system data
+        system_data = json.loads(open("systems.json").read())
+        self.system_data = {x['name'].lower() : x for x in system_data}
+
         self.oauth_creds = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'].encode(), ['https://spreadsheets.google.com/feeds'])
 
         self.frog_data = {
@@ -361,7 +369,7 @@ class pyborg:
             sys.exit(1)
 
         # add trailing space so sentences are broken up correctly
-        body = body + " "
+        #body = body + " "
 
         #Check for contextual commands
         contextual = self.is_contextual_command(body)
@@ -378,6 +386,7 @@ class pyborg:
 
         # Filter out garbage and do some formatting
         body = filter_message(body, self)
+        body = body.replace(self.bot_name.lower(), '')
 
         # Learn from input
         if learn == True:
@@ -439,8 +448,9 @@ class pyborg:
         """
 
         command_list = {
-                '^who(?: the fuck)? is (?:cmdr )?(.+)$' : self.identify_friend_foe,
+                '^who(?: the fuck)? is (?:cmdr )?((?:\w+\s?){1,3})$' : self.identify_friend_foe,
                 '^(witness m[ey].*)$' : self.witness,
+                '^where is (.+)$' : self.distance_to_home,
                 }
 
         #if re.search(pattern, words[x]):
@@ -450,6 +460,46 @@ class pyborg:
                 return (result.group(1), command_list[regex])
 
         return False
+
+    def distance_to_home(self, io_module, body, args, owner, opsec_level=None):
+
+        home_key = "63 G. Capricorni"
+        if body.lower() in self.system_data.keys():
+            payload = {'distance' : self.distance_between(body, home_key.lower()), 'source' : home_key, 'dest' : self.system_data[body.lower()]['name']}
+            msg = "%(dest)s is %(distance)1.2fly from %(source)s" % payload
+        else:
+            msg = "I don't know where %s is" % body
+
+        io_module.output(msg, args)
+
+
+
+
+    def distance_between(self, key_a, key_b):
+        """
+        Calculates the distance between two known systems
+        """
+        key_a = key_a.lower()
+        key_b = key_b.lower()
+        if not key_a in self.system_data.keys() or not key_b in self.system_data.keys():
+            return False
+
+        sys_a_x = Decimal(self.system_data[key_a]['x'])
+        sys_a_y = Decimal(self.system_data[key_a]['y'])
+        sys_a_z = Decimal(self.system_data[key_a]['z'])
+
+        sys_b_x = Decimal(self.system_data[key_b]['x'])
+        sys_b_y = Decimal(self.system_data[key_b]['y'])
+        sys_b_z = Decimal(self.system_data[key_b]['z'])
+
+        x_len = sys_b_x - sys_a_x
+        y_len = sys_b_y - sys_a_y
+        z_len = sys_b_z - sys_a_z
+
+        hyp_1 = math.sqrt(math.pow(x_len, 2) + math.pow(y_len, 2))
+        hyp_2 = math.sqrt(math.pow(z_len, 2) + math.pow(hyp_1, 2))
+
+        return hyp_2
 
 
 
@@ -490,14 +540,17 @@ class pyborg:
                     self.wing_data[wing_data[0]] = [x for x in wing_data[1:] if x != ""]
 
                     #fancy_flight_name = wing_data[0]
-                    if wing_data[0][-2:] == "01":
+                    if wing_data[0][-2] == "1":
+                        fancy_flight_name = "%sth" % wing_data[0]
+                    elif wing_data[0][-1] == "1":
                         fancy_flight_name = "%sst" % wing_data[0]
-                    elif wing_data[0][-2:] == "02":
+                    elif wing_data[0][-1] == "2":
                         fancy_flight_name = "%snd" % wing_data[0]
-                    elif wing_data[0][-2:] == "03":
+                    elif wing_data[0][-1] == "3":
                         fancy_flight_name = "%srd" % wing_data[0]
                     else:
                         fancy_flight_name = "%sth" % wing_data[0]
+
 
                     for f in self.wing_data[wing_data[0]]:
                         self.frog_list[f.lower()] = {'rank' : 'a member', 'flight' : fancy_flight_name, 'squadron' : flight, 'flight_number' : wing_data[0]}
@@ -543,10 +596,9 @@ class pyborg:
         raw_body, source, target, msg_type = args
 
         #Refresh frog_data every 600 seconds
-        if self.last_data_update is None or abs(datetime.datetime.now() - self.last_data_update).seconds > 600:
-            io_module.output("Updating IFF cache, stand by.", args)
+        if self.last_data_update is None:
+            io_module.output("Creating IFF cache, stand by.", args)
             self._update_frog_data()
-
 
         check = body.lower().strip()
         if len(check) < 4:
@@ -554,6 +606,11 @@ class pyborg:
 
         #if check == "darthblingbling":
         #    io_module.kick("ARE YOU QUESTIONING YOUR SUPERIORS", args)
+
+        if check == "frogbear":
+            io_module.set_role("Dumb Arsehole", args[1], args)
+            io_module.output("I'm a strong black woman who don't need no form. And you're an ass.", args)
+            return
 
         #HAAAACK
         try:
@@ -589,7 +646,7 @@ class pyborg:
                         prefix = "CMDR %s is a registered Frog" % frog[2]
 
                     #message.append(prefix + postfix)
-                    message[frog[3].lower()] = prefix + postfix
+                    message[frog[3].lower()] = prefix + postfix + "."
 
             for kos in self.not_frogs['KOS']:
                 if check in kos.lower():
@@ -620,23 +677,25 @@ class pyborg:
                 io_module.output("Too many results found", args)
             elif len(message.keys()) > 0:
                 if 'darthblingbling' in message.keys():
-                    del message['darthblingbling']
-                    io_module.output("Someone's being an ass.", args)
+                    message['darthblingbling'] = message['darthblingbling'] + " Also, you're an ass."
                     io_module.set_role("Dumb Arsehole", args[1], args)
 
-                if len(message.keys()) > 0:
-                    print "Working with %s" % message
-                    for m in message:
-                        print "Outputting %s" % message[m]
-                        io_module.output(message[m], args)
-                else:
-                    return
+
+                print "Working with %s" % message
+                for m in message:
+                    print "Outputting %s" % message[m]
+                    io_module.output(message[m], args)
             else:
                 io_module.output("I don't know who %s is" % body, args)
 
         except Exception, e:
-            print "Could not look up the google api: %s" % str(e)
+            print "Horrible exception thrown: %s" % str(e)
             io_module.output("Could not look anything up, try again later.", args)
+            raise
+
+        if abs(datetime.datetime.now() - self.last_data_update).seconds > 600:
+            io_module.output("Updating IFF cache.", args)
+            self._update_frog_data()
 
     def orders(self, io_module, body, args, owner, opsec_level=None):
         """
@@ -698,12 +757,34 @@ class pyborg:
         if command_list[0] == "!version":
             msg = self.ver_string
 
-        elif command_list[0] == "!iff":
+        elif command_list[0] in ["!iff", "!w"]:
             self.identify_friend_foe(io_module, " ".join(command_list[1:]), args, owner, opsec_level=opsec_level)
+            return
         elif command_list[0] == "!scramble":
             self.scramble(io_module, " ".join(command_list[1:]), args, owner, opsec_level=opsec_level)
+            return
         elif command_list[0] == "!orders":
             self.orders(io_module, " ".join(command_list[1:]), args, owner, opsec_level=opsec_level)
+            return
+        elif command_list[0] == "!distance":
+            try:
+                #print "Attempting to split %s" % command_list
+                split = command_list.index("to")
+                system_1 = " ".join(command_list[1:split])
+                system_2 = " ".join(command_list[split+1:])
+                #print "Systems recorded as %s, %s" % (system_1, system_2)
+                distance = self.distance_between(system_1, system_2)
+                payload = {'distance' : distance, 'source' : self.system_data[system_1.lower()]['name'], 'dest' : self.system_data[system_2.lower()]['name']}
+                #print "Distance is %s" % distance
+                if distance:
+                    msg = "%(dest)s is %(distance)1.2fly from %(source)s" % payload
+                    #msg = "It's %1.2fly from %s to %s" % (distance, self.system_data[system_1.lower()]['name'], self.system_data[system_2.lower()]['name'])
+                else:
+                    raise Exception
+            except Exception, e:
+                print "Exception raised: %s" % str(e)
+                msg = "Could not find both systems requested."
+            #self.orders(io_module, " ".join(command_list[1:]), args, owner, opsec_level=opsec_level)
 
         # How many words do we know?
         elif command_list[0] == "!words" and self.settings.process_with == "pyborg":
