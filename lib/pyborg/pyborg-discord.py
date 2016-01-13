@@ -41,6 +41,7 @@ import random
 import time
 import traceback
 import thread
+import logging
 from pprint import pprint
 
 def get_time():
@@ -163,12 +164,11 @@ class DiscordBot(object):
         #            pass
 
     def our_start(self):
-        print "Connecting to server..."
         #SingleServerIRCBot.__init__(self, self.settings.servers, self.settings.myname, self.settings.realname, 2, self.settings.localaddress, self.settings.ipv6)
         try:
             self.client.login(self.settings.disco_auth[0], self.settings.disco_auth[1])
         except Exception, e:
-            print "Could not authenticate to discord"
+            print "Could not authenticate to discord: %s" % str(e)
             raise e
 
         #self.connection.execute_delayed(20, self._chan_checker)
@@ -304,344 +304,18 @@ class DiscordBot(object):
             #    self.pyborg.process_msg(self, body, replyrate, learn, (body, message.channel, 'public'))
             #    pass
 
-    #def on_msg(self, c, e):
         self.client.run()
 
 
-    #def on_welcome(self, c, e):
-    #    print self.chans
-    #    if self.settings.nickserv and self.settings.nickserv[0] != '':
-    #        if len(self.settings.nickserv) == 2 and self.settings.nickserv[1] != '':
-    #            c.privmsg('NickServ', 'identify ' + self.settings.nickserv[0] + ' ' + self.settings.nickserv[1])
-    #        else:
-    #            c.privmsg('NickServ', 'identify ' + self.settings.nickserv)
-    #    for i in self.chans:
-    #        c.join(i)
-
-    #def shutdown(self):
-    #    try:
-    #        self.die() # disconnect from server
-    #    except AttributeError, e:
-    #        # already disconnected probably (pingout or whatever)
-    #        pass
-
-    #def get_version(self):
-    #    if self.settings.stealth:
-    #        # stealth mode. we shall be a windows luser today
-    #        return "VERSION mIRC32 v5.6 K.Mardam-Bey"
-    #    else:
-    #        return self.pyborg.ver_string
-
-    #def on_kick(self, c, e):
-    #    """
-    #    Process leaving
-    #    """
-    #    # Parse Nickname!username@host.mask.net to Nickname
-    #    kicked = e.arguments()[0]
-    #    kicker = e.source().split("!")[0]
-    #    target = e.target() #channel
-    #    if len(e.arguments()) >= 2:
-    #        reason = e.arguments()[1]
-    #    else:
-    #        reason = ""
-
-    #    if kicked == self.settings.myname:
-    #        print "[%s] <--  %s was kicked off %s by %s (%s)" % (get_time(), kicked, target, kicker, reason)
-    #        self.inchans.remove(target.lower())
-
-    #def on_part(self, c, e):
-    #    """
-    #    Process leaving
-    #    """
-    #    # Parse Nickname!username@host.mask.net to Nickname
-    #    parter = e.source().split("!")[0]
-
-    #    if parter == self.settings.myname:
-    #        target = e.target() #channel
-    #        self.inchans.remove(target.lower())
-
-    #def on_join(self, c, e):
-    #    """
-    #    Process Joining
-    #    """
-    #    # Parse Nickname!username@host.mask.net to Nickname
-    #    joiner = e.source().split("!")[0]
-
-    #    if joiner == self.settings.myname:
-    #        target = e.target() #channel
-    #        self.inchans.append(target.lower())
-
-    #def on_privmsg(self, c, e):
-    #    self.on_msg(c, e)
-
-    #def on_featurelist(self, c, e):
-    #    for feature in e.arguments():
-    #        if feature[:8] == "MONITOR=":
-    #            print "MONITOR supported."
-    #            self.feature_monitor = True
-    #            c.send_raw("MONITOR + %s" % self.wanted_myname)
-    #            break
-
-    #def _failed_new_nickname(self, c, e):
-    #    if self.attempting_regain is False:
-    #        self.settings.myname = c.get_nickname()[:8] + `random.randint(0, 9)`
-    #        self.connection.nick(self.settings.myname)
-    #    else:
-    #        if self.feature_monitor:
-    #            # A collision may have occurred, check again.
-    #            c.send_raw("MONITOR s")
-    #        self.settings.myname = c.get_nickname()
-    #        self.attempting_regain = False
-
-    #def on_nicknameinuse(self, c, e):
-    #    self._failed_new_nickname(c, e)
-
-    #def on_erroneusnickname(self, c, e):
-    #    self._failed_new_nickname( c, e)
-
-#   # def on_unavailresource(self, c, e):
-#   #     self._failed_new_nickname(c, e)
-
-    #def on_pubmsg(self, c, e):
-    #    self.on_msg(c, e)
-
-    #def on_ctcp(self, c, e):
-    #    ctcptype = e.arguments()[0]
-    #    if ctcptype == "ACTION":
-    #        self.on_msg(c, e)
-    #    else:
-    #        SingleServerIRCBot.on_ctcp(self, c, e)
 
     def disconnect(self):
-        print "deconnection"
+        print "Disconnecting."
         self.attempting_regain = False
         self.feature_monitor = False
-        self.client.logout()
-
-
-    #def irc_commands(self, body, source, target, c, e):
-    #    """
-    #    Special IRC commands.
-    #    """
-    #    msg = ""
-
-    #    command_list = body.split()
-    #    command_list[0] = command_list[0].lower()
-
-    #    ### User commands
-    #    # Query replyrate
-    #    if command_list[0] == "!replyrate" and len(command_list)==1:
-    #        msg = "Reply rate is "+`self.settings.reply_chance`+"%."
-
-    #    if command_list[0] == "!owner" and len(command_list) > 1 and source not in self.owners:
-    #        if command_list[1] == self.settings.password:
-    #            self.owners.append(source)
-    #            self.output("You've been added to owners list", ("", source, target, c, e))
-    #        else:
-    #            self.output("Try again", ("", source, target, c, e))
-
-    #    ### Owner commands
-    #    if source in self.owners and e.source() in self.owner_mask:
-
-    #        # Change nick
-    #        if command_list[0] == "!nick":
-    #            try:
-    #                self.connection.nick(command_list[1])
-    #                self.settings.myname = command_list[1]
-    #                self.wanted_myname = self.settings.myname
-    #            except:
-    #                pass
-    #        # stealth mode
-    #        elif command_list[0] == "!stealth":
-    #            msg = "Stealth mode "
-    #            if len(command_list) == 1:
-    #                if self.settings.stealth == 0:
-    #                    msg = msg + "off"
-    #                else:
-    #                    msg = msg + "on"
-    #            else:
-    #                toggle = command_list[1].lower()
-    #                if toggle == "on":
-    #                    msg = msg + "on"
-    #                    self.settings.stealth = 1
-    #                else:
-    #                    msg = msg + "off"
-    #                    self.settings.stealth = 0
-
-    #        # filter mirc colours out?
-    #        elif command_list[0] == "!nocolor" or command_list[0] == "!nocolour":
-    #            msg = "obsolete command "
-
-    #        # Allow/disallow replying to ignored nicks
-    #        # (they will never be learnt from)
-    #        elif command_list[0] == "!reply2ignored":
-    #            msg = "Replying to ignored users "
-    #            if len(command_list) == 1:
-    #                if self.settings.reply2ignored == 0:
-    #                    msg = msg + "off"
-    #                else:
-    #                    msg = msg + "on"
-    #            else:
-    #                toggle = command_list[1]
-    #                if toggle == "on":
-    #                    msg = msg + "on"
-    #                    self.settings.reply2ignored = 1
-    #                else:
-    #                    msg = msg + "off"
-    #                    self.settings.reply2ignored = 0
-    #        # Stop talking
-    #        elif command_list[0] == "!shutup":
-    #            if self.settings.speaking == 1:
-    #                msg = "I'll be quiet :-("
-    #                self.settings.speaking = 0
-    #            else:
-    #                msg = ":-x"
-    #        # Wake up again
-    #        elif command_list[0] == "!wakeup":
-    #            if self.settings.speaking == 0:
-    #                self.settings.speaking = 1
-    #                msg = "Whoohoo!"
-    #            else:
-    #                msg = "But i'm already awake..."
-
-    #        # Join a channel or list of channels
-    #        elif command_list[0] == "!join":
-    #            for x in xrange(1, len(command_list)):
-    #                if not command_list[x] in self.chans:
-    #                    self.chans.append(command_list[x])
-    #                if not command_list[x].lower() in self.inchans:
-    #                    msg = "Attempting to join channel %s" % command_list[x]
-    #                    c.join(command_list[x])
-
-    #        # Part a channel or list of channels
-    #        elif command_list[0] == "!part":
-    #            for x in xrange(1, len(command_list)):
-    #                if command_list[x] in self.chans:
-    #                    self.chans.remove(command_list[x])
-    #                if command_list[x].lower() in self.inchans:
-    #                    msg = "Leaving channel %s" % command_list[x]
-    #                    c.part(command_list[x])
-
-    #        # List channels currently on
-    #        elif command_list[0] == "!chans":
-    #            if len(self.channels.keys())==0:
-    #                msg = "I'm currently on no channels"
-    #            else:
-    #                msg = "I'm currently on "
-    #                channels = self.channels.keys()
-    #                for x in xrange(0, len(channels)):
-    #                    msg = msg+channels[x]+" "
-    #        # add someone to the ignore list
-    #        elif command_list[0] == "!ignore":
-    #            # if no arguments are given say who we are
-    #            # ignoring
-    #            if len(command_list) == 1:
-    #                msg = "I'm ignoring "
-    #                if len(self.settings.ignorelist) == 0:
-    #                    msg = msg + "nobody"
-    #                else:
-    #                    for x in xrange(0, len(self.settings.ignorelist)):
-    #                        msg = msg + self.settings.ignorelist[x] + " "
-    #            # Add everyone listed to the ignore list
-    #            # eg !ignore tom dick harry
-    #            else:
-    #                for x in xrange(1, len(command_list)):
-    #                    self.settings.ignorelist.append(command_list[x].lower())
-    #                    msg = "done"
-    #        # remove someone from the ignore list
-    #        elif command_list[0] == "!unignore":
-    #            # Remove everyone listed from the ignore list
-    #            # eg !unignore tom dick harry
-    #            for x in xrange(1, len(command_list)):
-    #                try:
-    #                    self.settings.ignorelist.remove(command_list[x].lower())
-    #                    msg = "done"
-    #                except:
-    #                    pass
-    #        # set the quit message
-    #        elif command_list[0] == "!quitmsg":
-    #            if len(command_list) > 1:
-    #                self.settings.quitmsg = body.split(" ", 1)[1]
-    #                msg = "New quit message is \"%s\"" % self.settings.quitmsg
-    #            else:
-    #                msg = "Quit message is \"%s\"" % self.settings.quitmsg
-    #        # make the pyborg quit
-    #        elif command_list[0] == "!quit":
-    #            sys.exit()
-    #        elif command_list[0] == "!jump":
-    #            print("Jumping servers...")
-    #            self.jump_server()
-    #        # Change reply rate
-    #        elif command_list[0] == "!replyrate":
-    #            try:
-    #                self.settings.reply_chance = int(command_list[1])
-    #                msg = "Now replying to %d%% of messages." % int(command_list[1])
-    #            except:
-    #                msg = "Reply rate is %d%%." % self.settings.reply_chance
-    #        #make the bot talk
-    #        elif command_list[0] == "!talk":
-    #            if len(command_list) >= 2:
-    #                phrase=""
-    #                for x in xrange (2, len (command_list)):
-    #                    phrase = phrase + str(command_list[x]) + " "
-    #                self.output(phrase, ("", command_list[1], "", c, e))
-    #        #make the bot /me
-    #        elif command_list[0] == "!me":
-    #            if len(command_list) >= 2:
-    #                phrase=""
-    #                for x in xrange (2, len (command_list)):
-    #                    phrase = phrase + str(command_list[x]) + " "
-    #                self.output("\x01ACTION " + phrase + "\x01", ("", command_list[1], "", c, e))
-    #        # Save changes
-    #        save_myname = self.settings.myname
-    #        if self.wanted_myname is not None:
-    #            self.settings.myname = self.wanted_myname
-    #        self.pyborg.settings.save()
-    #        self.settings.save()
-    #        self.settings.myname = save_myname
-
-    #    if msg == "":
-    #        return 0
-    #    else:
-    #        self.output(msg, ("<none>", source, target, c, e))
-    #        return 1
-
-
-    #def _chan_checker(self):
-    #    if self.connection.is_connected():
-    #        for i in self.chans:
-    #            if not i.split()[0].lower() in self.inchans:
-    #                print "Attempting to rejoin %s" % i
-    #                self.connection.join(i)
-    #    self.connection.execute_delayed(20, self._chan_checker)
-
-    #def _nick_checker(self):
-    #    if (self.connection.is_connected() and
-    #        self.feature_monitor is False and
-    #        self.connection.get_nickname() != self.wanted_myname):
-    #           self.connection.ison([self.wanted_myname])
-    #    self.connection.execute_delayed(20, self._nick_checker)
-
-    #def _try_regain(self, nick):
-    #        print "Attempting to regain nickname %s" % nick
-    #        self.attempting_regain = True
-    #        self.settings.myname = nick
-    #        self.connection.nick(self.settings.myname)
-
-    #def on_ison(self, c, e):
-    #    nick_found = False
-    #    for nick in e.arguments()[0].split():
-    #        if nick.lower() == self.wanted_myname.lower():
-    #            nick_found = True
-    #            break
-    #    if not nick_found:
-    #        self._try_regain(self.wanted_myname)
-
-    #def on_monoffline(self, c, e):
-    #    for nick in e.arguments()[0].split(','):
-    #        if nick.lower() == self.wanted_myname.lower():
-    #            self._try_regain(self.wanted_myname)
-    #            break
+        try:
+            self.client.logout()
+        except AttributeError, e:
+            print "Error logging out."
 
     def set_role(self, role, target, args):
         """
@@ -666,8 +340,11 @@ class DiscordBot(object):
                 print "Could not find role %s on target server %s" % (role, target.server.name)
                 return
 
+        target_roles = target.roles
+        target_roles.append(role)
 
-        self.client.add_roles(target, *[role])
+
+        self.client.add_roles(target, *target_roles)
 
 
     def kick(self, message, args):
@@ -798,11 +475,14 @@ if __name__ == "__main__":
         sys.exit(0)
     # start the pyborg
     run = True
+    wait = 0
     while(run):
+        time.sleep(wait)
         my_pyborg = pyborg.pyborg()
         #bot = ModIRC(my_pyborg, sys.argv)
         bot = DiscordBot(my_pyborg, sys.argv)
         try:
+            wait = 0
             bot.our_start()
         except KeyboardInterrupt, e:
             run = False
@@ -810,7 +490,9 @@ if __name__ == "__main__":
             run = False
         except:
             traceback.print_exc()
-            c = raw_input("Ooops! It looks like Pyborg has crashed.")
+            #c = raw_input("Ooops! It looks like Pyborg has crashed.")
+            print "Pyborg crash, restarting in 30 seconds."
+            wait = 30
             #if c.lower()[:1] == 'n':
             #    sys.exit(0)
         bot.autosave_stop()

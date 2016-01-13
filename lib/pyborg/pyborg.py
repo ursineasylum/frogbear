@@ -201,12 +201,14 @@ class pyborg:
                         'iff registry' : {'id' : 'oxi9gng', 'data' : None},
                         'command staff' : {'id' : 'otieqhn', 'data' : None},
                         'deployments' : {'id' : 'olhqcx7', 'data' : None},
+                        'organizations' : {'id' : 'o1j4hnl', 'data' : None},
                         },
                     },
         }
         self.wing_data = {}
         self.frog_list = {}
         self.not_frogs = {}
+        self.other_orgs = {}
 
         self.scramble_reports = {}
 
@@ -553,7 +555,7 @@ class pyborg:
 
 
                     for f in self.wing_data[wing_data[0]]:
-                        self.frog_list[f.lower()] = {'rank' : 'a member', 'flight' : fancy_flight_name, 'squadron' : flight, 'flight_number' : wing_data[0]}
+                        self.frog_list[f.lower()] = {'name' : f, 'rank' : 'a member', 'flight' : fancy_flight_name, 'squadron' : flight, 'flight_number' : wing_data[0]}
 
                     if wing_data[1] != "":
                         self.frog_list[wing_data[1].lower()]['rank'] = 'the flight leader'
@@ -564,9 +566,11 @@ class pyborg:
             elif flight in ['command staff']:
                 wing_list = self.frog_data['goatcore']['sheets'][flight]['data']
                 for member in wing_list[0:]:
-                    self.frog_list[member[0].lower()] = {'rank' : member[1], 'flight' : '', 'flight_number' : ''}
+                    self.frog_list[member[0].lower()] = {'name' : member[0], 'rank' : member[1], 'flight' : '', 'flight_number' : ''}
 
         self.not_frogs = {x[0] : x[1:] for x in zip(*self.frog_data['goatcore']['sheets']['iff registry']['data'])}
+
+        self.other_orgs = {x[0] : {'level' : x[1], 'members' : [y for y in x[2:] if y != ""]} for x in zip(*self.frog_data['goatcore']['sheets']['organizations']['data'])}
 
         for item in self.scramble_reports.keys():
             if abs(self.scramble_reports[item]['time'] - datetime.datetime.now()).seconds > 300:
@@ -597,7 +601,7 @@ class pyborg:
 
         #Refresh frog_data every 600 seconds
         if self.last_data_update is None:
-            io_module.output("Creating IFF cache, stand by.", args)
+            io_module.output("Registering IFF signatures, stand by.", args)
             self._update_frog_data()
 
         check = body.lower().strip()
@@ -646,47 +650,129 @@ class pyborg:
                         prefix = "CMDR %s is a registered Frog" % frog[2]
 
                     #message.append(prefix + postfix)
-                    message[frog[3].lower()] = prefix + postfix + "."
+                    message[frog[3].lower()] = {'type' : 'frog', 'message' : prefix + postfix + "."}
+
+            for frog in self.frog_list.keys():
+                if check in frog.lower() and frog.lower() not in message.keys():
+                    if self.frog_list[frog]['flight'] == "":
+                        msg = "CMDR %s is the %s" % (self.frog_list[frog]['name'], self.frog_list[frog]['rank'])
+                    else:
+                        msg = "CMDR %s is %s of the %s %s" % (self.frog_list[frog]['name'], self.frog_list[frog]['rank'], self.frog_list[frog]['flight'], self.frog_list[frog]['squadron'])
+
+                    message[frog.lower()] = {'type' : 'frog', 'message' : msg + ", and needs to fill out the damn form."}
+
+            #CMDR X is a MISSION TARGET/KOS affiliated with ORG. !scramble to etc
+            #CMDR X is a MISSION TARGET/KOS. Advising friendly affiliation with ORG, engage with discretion. !scramble to etc
+
+            for org in self.other_orgs.keys():
+                this_org = self.other_orgs[org]
+                for member in this_org['members']:
+                    if check in member.lower():
+                        msg = { 'message' : "CMDR %s is affiliated with %s" % (member, org), 'org' : {'name' : org}, 'cmdr' : member}
+                        if this_org['level'] == "Friendly":
+                            msg['org']['type'] = "friendly"
+                            msg['type'] = "friendly"
+                            msg['message'] += " and is *FRIENDLY*."
+                        elif this_org['level'] == "Hostile":
+                            msg['org']['type'] = "mission_target"
+                            msg['type'] = "mission_target"
+                            msg['message'] += " and is a **MISSION TARGET**."
+                        elif this_org['level'] == "KOS":
+                            msg['message'] += " and is **KOS**."
+                            msg['org']['type'] = "kos"
+                            msg['type'] = "kos"
+                        else:
+                            msg['org']['type'] = "neutral"
+                            msg['type'] = ""
+
+                        message[member.lower()] = msg
+                        break
+
 
             for kos in self.not_frogs['KOS']:
                 if check in kos.lower():
                     #message.append("CMDR %s is a KOS target. Type \"!scramble <location>\" to alert the fleet." % kos)
-                    message[kos.lower()] = "CMDR %s is a KOS target. Type \"!scramble <location>\" to alert the fleet." % kos
-                    self.scramble_reports[source] = {
-                            'reporter' : source,
-                            'target' : kos,
-                            'orig_channel' : '1b-gunfrogs-kos-alerts',
-                            'time' : datetime.datetime.now()
-                            }
+                    if kos.lower() in message:
+                        msg = "CMDR %s is a **KOS TARGET**" % kos
+                        if message[kos.lower()]['type'] == "friendly":
+                            msg = msg + ". Advising friendly affiliation with %s, engage with discretion." % message[kos.lower()]['org']['name']
+                        else:
+                            msg = msg + " affiliated with %s." % message[kos.lower()]['org']['name']
+
+                        message[kos.lower()].update({'message' : msg, 'type' : 'kos'})
+                    else:
+                        message[kos.lower()] = {'message' : "CMDR %s is a KOS target." % kos, 'type' : 'kos', 'cmdr' : kos}
+
+                        #self.scramble_reports[source] = {
+                        #        'reporter' : source,
+                        #        'target' : kos,
+                        #        'orig_channel' : '1b-gunfrogs-kos-alerts',
+                        #        'time' : datetime.datetime.now()
+                        #        }
 
             for mission_target in self.not_frogs['Mission Target']:
                 if check in mission_target.lower():
-                    message[mission_target.lower()] = "CMDR %s is a mission target. Type \"!scramble <location>\" to alert %s" % (mission_target, target.name)
+                    #message.append("CMDR %s is a mission_target target. Type \"!scramble <location>\" to alert the fleet." % mission_target)
+                    if mission_target.lower() in message:
+                        msg = "CMDR %s is a **MISSION TARGET**" % mission_target
+                        if message[mission_target.lower()]['type'] == "friendly":
+                            msg = msg + ". Advising friendly affiliation with %s, engage with discretion." % message[mission_target.lower()]['org']['name']
+                        else:
+                            msg = msg + " affiliated with %s." % message[mission_target.lower()]['org']['name']
+
+                        message[mission_target.lower()].update({'message' : msg, 'type' : "mission_target"})
+                    else:
+                        message[mission_target.lower()] = {'message' : "CMDR %s is a **MISSION TARGET**." % mission_target, 'type' : 'mission_target', 'cmdr' : mission_target}
+
+                    #message[mission_target.lower()] = "CMDR %s is a mission target. Type \"!scramble <location>\" to alert %s" % (mission_target, target.name)
                     #message.append("CMDR %s is a mission target. Type \"!scramble <location>\" to alert the fleet." % mission_target)
-                    self.scramble_reports[source] = {
-                            'reporter' : source,
-                            'target' : mission_target,
-                            'orig_channel' : target.name,
-                            'time' : datetime.datetime.now()
-                            }
+                    #self.scramble_reports[source] = {
+                    #        'reporter' : source,
+                    #        'target' : mission_target,
+                    #        'orig_channel' : target.name,
+                    #        'time' : datetime.datetime.now()
+                    #        }
 
             for friendly in self.not_frogs['Non-Frog Friendly']:
                 if check in friendly.lower():
+                    #CMDR X is a FRIENDLY affiliated with ORG.
+                    #CMDR X is a FRIENDLY. Advising enemy affiliation ORG, engage with discretion. !scramble to etc
+
+                    if friendly.lower() in message:
+                        if message[friendly.lower()]['type'] in ['mission_target', 'kos']:
+                            msg = "CMDR %s is a *KNOWN FRIENDLY*. Advising enemy affiliation with %s, engage with discretion." % (friendly, message[friendly.lower()]['org']['name'])
+                    else:
+                        message[friendly.lower()] = {'type' : 'friendly', 'message' : "CMDR %s is a *KNOWN FRIENDLY*." % friendly, 'cmdr' : friendly}
+
                     #message.append("CMDR %s is a Non-Frog Friendly." % friendly)
-                    message[friendly.lower()] = "CMDR %s is a Non-Frog Friendly." % friendly
 
             if len(message.keys()) > 3:
                 io_module.output("Too many results found", args)
             elif len(message.keys()) > 0:
-                if 'darthblingbling' in message.keys():
-                    message['darthblingbling'] = message['darthblingbling'] + " Also, you're an ass."
-                    io_module.set_role("Dumb Arsehole", args[1], args)
+                #TODO: Whitelist people immune from assing.
+                #if 'darthblingbling' in message.keys():
+                #    message['darthblingbling'] = message['darthblingbling'] + " Also, you're an ass."
+                #    io_module.set_role("Dumb Arsehole", args[1], args)
 
 
                 print "Working with %s" % message
                 for m in message:
                     print "Outputting %s" % message[m]
-                    io_module.output(message[m], args)
+                    if message[m]['type'] in ["mission_target", "kos"]:
+                        message[m]['message'] = message[m]['message'] + " Type \"!scramble <location>\" to alert the fleet."
+
+                        channel = target.name
+                        if message[m]['type'] == "kos":
+                            channel = "1b-gunfrogs-kos-alerts"
+
+                        self.scramble_reports[source] = {
+                                'reporter' : source,
+                                'target' : message[m]['cmdr'],
+                                'orig_channel' : channel,
+                                'time' : datetime.datetime.now()
+                                }
+
+                    io_module.output(message[m]['message'], args)
             else:
                 io_module.output("I don't know who %s is" % body, args)
 
@@ -696,7 +782,7 @@ class pyborg:
             raise
 
         if abs(datetime.datetime.now() - self.last_data_update).seconds > 600:
-            io_module.output("Updating IFF cache.", args)
+            #io_module.output("Updating IFF signatures.", args)
             self._update_frog_data()
 
     def orders(self, io_module, body, args, owner, opsec_level=None):
@@ -710,7 +796,7 @@ class pyborg:
 
         #Refresh frog_data every 600 seconds
         if self.last_data_update is None or abs(datetime.datetime.now() - self.last_data_update).seconds > 600:
-            io_module.output("Updating IFF cache, stand by.", args)
+            io_module.output("Updating IFF signatures, stand by.", args)
             self._update_frog_data()
 
 
@@ -754,10 +840,19 @@ class pyborg:
         command_list[0] = command_list[0].lower()
 
         # Guest commands.
+        body, source, target, msg_type = args
 
         # Version string
         if command_list[0] == "!version":
             msg = self.ver_string
+
+        elif command_list[0] == "!recache":
+            if owner or source.lower() in ['paramemetic']:
+                io_module.output("Updating IFF signatures, standby.", args)
+                self._update_frog_data()
+                msg = "Update complete."
+            else:
+                return
 
         elif command_list[0] in ["!iff", "!w"]:
             self.identify_friend_foe(io_module, " ".join(command_list[1:]), args, owner, opsec_level=opsec_level)
@@ -814,12 +909,8 @@ class pyborg:
         # Owner commands
         if owner == True:
             # Save dictionary
-            if command_list[0] == "!recache":
-                io_module.output("Forcing recache, stand by.", args)
-                self._update_frog_data()
-                msg = "Recache complete."
 
-            elif command_list[0] == "!save":
+            if command_list[0] == "!save":
                 if self.save_all():
                     msg = "Dictionary saved"
                 else:

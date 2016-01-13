@@ -51,7 +51,8 @@ import itertools
 import datetime
 from base64 import b64encode
 
-log = logging.getLogger(__name__)
+logging.basicConfig(stream=sys.stdout)
+log = logging.getLogger('discord')
 request_logging_format = '{response.request.method} {response.url} has returned {response.status_code}'
 request_success_log = '{response.url} with {json} received {data}'
 
@@ -791,7 +792,6 @@ class Client(object):
             'email': email,
             'password': password
         }
-
         r = requests.post(endpoints.LOGIN, json=payload)
         log.debug(request_logging_format.format(response=r))
         if r.status_code == 400:
