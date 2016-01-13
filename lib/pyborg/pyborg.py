@@ -655,16 +655,18 @@ class pyborg:
                     self.scramble_reports[source] = {
                             'reporter' : source,
                             'target' : kos,
+                            'orig_channel' : '1b-gunfrogs-kos-alerts',
                             'time' : datetime.datetime.now()
                             }
 
             for mission_target in self.not_frogs['Mission Target']:
                 if check in mission_target.lower():
-                    message[kos.lower()] = "CMDR %s is a KOS target. Type \"!scramble <location>\" to alert the fleet." % kos
+                    message[mission_target.lower()] = "CMDR %s is a mission target. Type \"!scramble <location>\" to alert %s" % (mission_target, target.name)
                     #message.append("CMDR %s is a mission target. Type \"!scramble <location>\" to alert the fleet." % mission_target)
                     self.scramble_reports[source] = {
                             'reporter' : source,
-                            'target' : kos,
+                            'target' : mission_target,
+                            'orig_channel' : target.name,
                             'time' : datetime.datetime.now()
                             }
 
@@ -739,7 +741,7 @@ class pyborg:
             if abs(datetime.datetime.now() - self.scramble_reports[p_scram]['time']).seconds > 300:
                 del self.scramble_reports[p_scram]
             elif self.scramble_reports[p_scram]['reporter'] == source:
-                io_module.output("@everyone Scramble! %s reported in %s by %s" % (self.scramble_reports[p_scram]['target'], body, self.scramble_reports[p_scram]['reporter']), (raw_body, source, "1b-gunfrogs-kos-alerts", "public"))
+                io_module.output("@everyone Scramble! %s reported in %s by %s" % (self.scramble_reports[p_scram]['target'], body, self.scramble_reports[p_scram]['reporter']), (raw_body, source, self.scramble_reports[p_scram]['orig_channel'], "public"))
                 del self.scramble_reports[p_scram]
 
     def do_commands(self, io_module, body, args, owner, opsec_level=None):
@@ -812,7 +814,12 @@ class pyborg:
         # Owner commands
         if owner == True:
             # Save dictionary
-            if command_list[0] == "!save":
+            if command_list[0] == "!recache":
+                io_module.output("Forcing recache, stand by.", args)
+                self._update_frog_data()
+                msg = "Recache complete."
+
+            elif command_list[0] == "!save":
                 if self.save_all():
                     msg = "Dictionary saved"
                 else:

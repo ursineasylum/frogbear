@@ -25,7 +25,6 @@ import sys, time
 from threading import Timer
 
 try:
-    print(sys.path)
     import discord
 except Exception, e:
     print str(e)
@@ -194,7 +193,6 @@ class DiscordBot(object):
                 if server.name in self.settings.interaction_settings.keys():
                     self.roles[server.name] = {x.name : x for x in server.roles}
 
-            pprint(self.roles)
 
 
         @self.client.event
@@ -799,27 +797,29 @@ if __name__ == "__main__":
         print
         sys.exit(0)
     # start the pyborg
-    my_pyborg = pyborg.pyborg()
-    #bot = ModIRC(my_pyborg, sys.argv)
-    bot = DiscordBot(my_pyborg, sys.argv)
-    try:
-        bot.our_start()
-    except KeyboardInterrupt, e:
-        pass
-    except SystemExit, e:
-        pass
-    except:
-        traceback.print_exc()
-        c = raw_input("Ooops! It looks like Pyborg has crashed. Would you like to save its dictionary? (y/n) ")
-        if c.lower()[:1] == 'n':
-            sys.exit(0)
-    bot.autosave_stop()
-    #bot.disconnect(bot.settings.quitmsg)
-    bot.disconnect()
-    if my_pyborg.saving:
-        while my_pyborg.saving:
-            print "Waiting for save in other thread..."
-            time.sleep(1)
-    else:
-        my_pyborg.save_all()
-    del my_pyborg
+    run = True
+    while(run):
+        my_pyborg = pyborg.pyborg()
+        #bot = ModIRC(my_pyborg, sys.argv)
+        bot = DiscordBot(my_pyborg, sys.argv)
+        try:
+            bot.our_start()
+        except KeyboardInterrupt, e:
+            run = False
+        except SystemExit, e:
+            run = False
+        except:
+            traceback.print_exc()
+            c = raw_input("Ooops! It looks like Pyborg has crashed.")
+            #if c.lower()[:1] == 'n':
+            #    sys.exit(0)
+        bot.autosave_stop()
+        #bot.disconnect(bot.settings.quitmsg)
+        bot.disconnect()
+        if my_pyborg.saving:
+            while my_pyborg.saving:
+                print "Waiting for save in other thread..."
+                time.sleep(1)
+        else:
+            my_pyborg.save_all()
+        del my_pyborg
