@@ -487,12 +487,13 @@ if __name__ == "__main__":
         except KeyboardInterrupt, e:
             run = False
         except SystemExit, e:
-            run = False
+            pass
+            #run = False
         except:
             traceback.print_exc()
             #c = raw_input("Ooops! It looks like Pyborg has crashed.")
-            print "Pyborg crash, restarting in 30 seconds."
-            wait = 30
+            print "Pyborg crash, restarting in 10 seconds."
+            wait = 10
             #if c.lower()[:1] == 'n':
             #    sys.exit(0)
         bot.autosave_stop()

@@ -533,13 +533,15 @@ class pyborg:
                             if sheet.id == self.frog_data[exp_doc]['sheets'][exp_sheet]['id']:
                                 self.frog_data[exp_doc]['sheets'][exp_sheet]['data'] = sheet.get_all_values()
 
+        self.wing_data = {}
+        self.frog_list = {}
         for flight in self.frog_data['goatcore']['sheets']:
             if flight in ['anurans','pollywogs','euro frogs','reserves']:
                 wing_list = zip(*self.frog_data['goatcore']['sheets'][flight]['data'])
 
 
                 for wing_data in wing_list:
-                    self.wing_data[wing_data[0]] = [x for x in wing_data[1:] if x != ""]
+                    self.wing_data[wing_data[0].strip()] = [x.strip() for x in wing_data[1:] if x != ""]
 
                     #fancy_flight_name = wing_data[0]
                     if wing_data[0][-2] == "1":
@@ -578,12 +580,10 @@ class pyborg:
 
         deploy_data = zip(*self.frog_data['goatcore']['sheets']['deployments']['data'])
 
+        self.deploy_data = {}
         for item in deploy_data[2:]:
             target = item[0]
             self.deploy_data.update({x : target for x in item[1:] if x != ""})
-
-        print self.deploy_data
-
 
         self.last_data_update = datetime.datetime.now()
 
@@ -604,16 +604,18 @@ class pyborg:
             io_module.output("Registering IFF signatures, stand by.", args)
             self._update_frog_data()
 
+        body = body.strip()
         check = body.lower().strip()
-        if len(check) < 4:
+        if len(check) < 3:
             return
 
         #if check == "darthblingbling":
         #    io_module.kick("ARE YOU QUESTIONING YOUR SUPERIORS", args)
 
         if check == "frogbear":
-            io_module.set_role("Dumb Arsehole", args[1], args)
-            io_module.output("I'm a strong black woman who don't need no form. And you're an ass.", args)
+            io_module.set_role("I Didn't Ask For This", args[1], args)
+            io_module.output("We are Frog. We are Bear. The barriers between us have fallen and we have become our own shadows. We can be more if we join...with you.", args)
+            #io_module.output("I'm a strong black woman who don't need no form. And you're an ass.", args)
             return
 
         #HAAAACK
@@ -637,11 +639,11 @@ class pyborg:
                 if check in frog[1].lower() or check in frog[2].lower() or check in frog[3].lower():
                     postfix = ""
                     prefix = ""
-                    if frog[1].lower() != frog[2].lower():
-                        postfix = ", aka on the forums as %s" % frog[1]
+                    #if frog[1].lower() != frog[2].lower():
+                    #    postfix = ", aka on the forums as %s" % frog[1]
 
-                    if frog[3].lower() in self.frog_list:
-                        this_frog = self.frog_list[frog[3].lower()]
+                    if frog[2].lower() in self.frog_list:
+                        this_frog = self.frog_list[frog[2].lower()]
                         if this_frog['flight'] != "":
                             prefix = "CMDR %s is %s of the %s %s" % (frog[2], this_frog['rank'], this_frog['flight'], this_frog['squadron'])
                         else:
@@ -649,8 +651,21 @@ class pyborg:
                     else:
                         prefix = "CMDR %s is a registered Frog" % frog[2]
 
+                    postfix = []
+                    if frog[2].lower() != frog[1].lower() and frog[1] != "":
+                        postfix.append("SA: **%s**" % frog[1])
+
+                    if frog[2].lower() != frog[3].lower() and frog[3] != "":
+                        postfix.append("Inara: **%s**" % frog[3])
+
+                    if len(postfix) > 0:
+                        postfix = " (%s)" % ", ".join(postfix)
+                    else:
+                        postfix = ""
+
+
                     #message.append(prefix + postfix)
-                    message[frog[3].lower()] = {'type' : 'frog', 'message' : prefix + postfix + "."}
+                    message[frog[2].lower()] = {'type' : 'frog', 'message' : prefix + postfix + "."}
 
             for frog in self.frog_list.keys():
                 if check in frog.lower() and frog.lower() not in message.keys():
@@ -755,7 +770,6 @@ class pyborg:
                 #    io_module.set_role("Dumb Arsehole", args[1], args)
 
 
-                print "Working with %s" % message
                 for m in message:
                     print "Outputting %s" % message[m]
                     if message[m]['type'] in ["mission_target", "kos"]:
@@ -774,11 +788,11 @@ class pyborg:
 
                     io_module.output(message[m]['message'], args)
             else:
-                io_module.output("I don't know who %s is" % body, args)
+                io_module.output("No IFF data registered for %s." % body, args)
 
         except Exception, e:
             print "Horrible exception thrown: %s" % str(e)
-            io_module.output("Could not look anything up, try again later.", args)
+            io_module.output("Could not retrieve IFF data for %s." % body, args)
             raise
 
         if abs(datetime.datetime.now() - self.last_data_update).seconds > 600:
