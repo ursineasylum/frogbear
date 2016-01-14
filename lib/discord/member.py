@@ -74,9 +74,11 @@ class Member(User):
         The :class:`Server` that the member belongs to.
     """
 
-    def __init__(self, deaf, joined_at, user, roles, mute, **kwargs):
+    def __init__(self, joined_at, user, roles, **kwargs):
         super(Member, self).__init__(**user)
+        deaf = kwargs.get('deaf', False)
         self.deaf = deaf
+        mute = kwargs.get('mute', False)
         self.mute = mute
         self.joined_at = parse_time(joined_at)
         self.roles = roles
